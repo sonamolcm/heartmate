@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
-from .models import User, Profile, Offer, TermsAndConditions, PrivacyPolicy, HelpLine, UserActivity
+from .models import User, Profile, Offer, TermsAndConditions, PrivacyPolicy, HelpLine, UserActivity, CallHistory
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -109,3 +109,12 @@ class OnCallUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'profile', 'is_on_call', 'coins']
+
+class CallHistorySerializer(serializers.ModelSerializer):
+    caller = UserSerializer(read_only=True)
+    receiver = UserSerializer(read_only=True)
+
+    class Meta:
+        model = CallHistory
+        fields = ['id', 'caller', 'receiver', 'channel_name', 'call_type', 'status', 'start_time', 'end_time']
+        read_only_fields = ['id', 'caller', 'receiver', 'channel_name', 'start_time']

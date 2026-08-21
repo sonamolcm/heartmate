@@ -32,4 +32,10 @@ urlpatterns = [
     path('api/offers/', views.get_active_offers, name='active_offers'),
     path('api/offers/<int:offer_id>/', views.get_offer_detail, name='offer_detail'),
     path('api/offers/<int:offer_id>/redeem/', views.redeem_offer, name='redeem_offer'),
+    
+    # FCM & Call URLs
+    path('api/fcm-token/', views.update_fcm_token, name='update_fcm_token'),
+    path('api/calls/initiate/', views.initiate_call, name='initiate_call'),
+    path('api/calls/<int:call_id>/status/', views.update_call_status, name='update_call_status'),
+    path('api/calls/history/', views.get_call_history, name='get_call_history'),
 ]

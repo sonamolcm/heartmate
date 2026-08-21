@@ -12,6 +12,7 @@ class User(AbstractUser):
     coins = models.IntegerField(default=0)
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
+    fcm_token = models.CharField(max_length=255, blank=True, null=True)
     
     USERNAME_FIELD = 'username'
     REQUIRED_FIELDS = ['phone_number']
@@ -91,3 +92,28 @@ class UserActivity(models.Model):
     
     def __str__(self):
         return f"{self.user.username} - {self.activity_type}"
+
+class CallHistory(models.Model):
+    CALL_TYPES = [
+        ('audio', 'Audio'),
+        ('video', 'Video'),
+    ]
+    STATUS_CHOICES = [
+        ('initiated', 'Initiated'),
+        ('accepted', 'Accepted'),
+        ('rejected', 'Rejected'),
+        ('missed', 'Missed'),
+        ('cancelled', 'Cancelled'),
+        ('completed', 'Completed'),
+    ]
+
+    caller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='outgoing_calls')
+    receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name='incoming_calls')
+    channel_name = models.CharField(max_length=100, unique=True)
+    call_type = models.CharField(max_length=10, choices=CALL_TYPES)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='initiated')
+    start_time = models.DateTimeField(default=timezone.now)
+    end_time = models.DateTimeField(blank=True, null=True)
+
+    def __str__(self):
+        return f"Call: {self.caller.username} -> {self.receiver.username} ({self.status})"
