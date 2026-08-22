@@ -1,0 +1,85 @@
+{% extends 'admin_panel/base.html' %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1>Welcome back, {{ request.user.username }}!</h1>
+    <p class="subtitle">Here's what's happening today.</p>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card glass">
+        <div class="stat-icon"><ion-icon name="people"></ion-icon></div>
+        <div class="stat-details">
+            <h3>Total Users</h3>
+            <h2>{{ total_users }}</h2>
+        </div>
+    </div>
+    
+    <div class="stat-card glass">
+        <div class="stat-icon"><ion-icon name="call"></ion-icon></div>
+        <div class="stat-details">
+            <h3>Total Calls</h3>
+            <h2>{{ total_calls }}</h2>
+        </div>
+    </div>
+    
+    <div class="stat-card glass highlight">
+        <div class="stat-icon"><ion-icon name="pulse"></ion-icon></div>
+        <div class="stat-details">
+            <h3>Active Users Online</h3>
+            <h2>{{ active_users }}</h2>
+        </div>
+    </div>
+</div>
+
+<div class="dashboard-sections">
+    <div class="section-card glass">
+        <div class="section-header">
+            <h2>Recent Calls</h2>
+            <a href="{% url 'admin_panel:calls' %}" class="btn-text">View All</a>
+        </div>
+        <div class="table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Caller</th>
+                        <th>Receiver</th>
+                        <th>Status</th>
+                        <th>Time</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for call in recent_calls %}
+                    <tr>
+                        <td>
+                            <div class="user-cell">
+                                <div class="avatar small">{{ call.caller.username.0|upper }}</div>
+                                <span>{{ call.caller.username }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="user-cell">
+                                <div class="avatar small">{{ call.receiver.username.0|upper }}</div>
+                                <span>{{ call.receiver.username }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="status-badge {{ call.status }}">{{ call.status|title }}</span>
+                        </td>
+                        <td>{{ call.start_time|timesince }} ago</td>
+                        <td>
+                            <a href="{% url 'admin_panel:call_detail' call.id %}" class="btn-text">View</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="empty-state">No recent calls</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

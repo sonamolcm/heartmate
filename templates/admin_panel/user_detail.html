@@ -1,0 +1,99 @@
+{% extends 'admin_panel/base.html' %}
+
+{% block content %}
+<div class="dashboard-header" style="display: flex; justify-content: space-between; align-items: center;">
+    <div>
+        <h1>User Details: {{ target_user.username }}</h1>
+        <p class="subtitle">Joined on {{ target_user.date_joined|date:"M d, Y" }}</p>
+    </div>
+    <a href="{% url 'admin_panel:users' %}" class="btn-primary" style="text-decoration: none; width: auto; padding: 10px 20px;">&larr; Back to Users</a>
+</div>
+
+<div class="stats-grid" style="margin-bottom: 24px;">
+    <!-- Account Info Card -->
+    <div class="section-card glass" style="grid-column: span 1;">
+        <h2 style="margin-bottom: 20px; font-size: 18px;">Account Status</h2>
+        
+        <div style="margin-bottom: 15px;">
+            <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 4px;">Online Status</p>
+            {% if target_user.is_online %}
+                <span class="status-badge completed">Online</span>
+            {% else %}
+                <span class="status-badge missed">Offline</span>
+            {% endif %}
+        </div>
+        
+        <div style="margin-bottom: 15px;">
+            <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 4px;">On Call</p>
+            {% if target_user.is_on_call %}
+                <span class="status-badge initiated">Yes</span>
+            {% else %}
+                <span class="status-badge">No</span>
+            {% endif %}
+        </div>
+        
+        <div style="margin-bottom: 15px;">
+            <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 4px;">Coin Balance</p>
+            <h2 style="color: var(--accent-primary);">{{ target_user.coins }}</h2>
+        </div>
+        
+        <div>
+            <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 4px;">Registered Phone</p>
+            <p>{{ target_user.phone_number|default:"Not Provided" }}</p>
+        </div>
+    </div>
+
+    <!-- Profile Info Card -->
+    <div class="section-card glass" style="grid-column: span 2;">
+        <h2 style="margin-bottom: 20px; font-size: 18px;">Public Profile</h2>
+        
+        {% if target_user.profile %}
+            <div style="display: flex; gap: 30px;">
+                <div style="text-align: center;">
+                    {% if target_user.profile.profile_picture %}
+                        <img src="{{ target_user.profile.profile_picture.url }}" alt="Profile Pic" style="width: 120px; height: 120px; border-radius: 12px; object-fit: cover; border: 2px solid var(--glass-border);">
+                    {% else %}
+                        <div style="width: 120px; height: 120px; border-radius: 12px; background: var(--accent-gradient); display: flex; align-items: center; justify-content: center; font-size: 40px; font-weight: bold;">
+                            {{ target_user.profile.name.0|default:target_user.username.0|upper }}
+                        </div>
+                    {% endif %}
+                    
+                    <div style="margin-top: 10px;">
+                        {% if target_user.profile.is_verified %}
+                            <span class="status-badge completed" style="font-size: 10px;"><ion-icon name="checkmark-circle"></ion-icon> Verified</span>
+                        {% else %}
+                            <span class="status-badge missed" style="font-size: 10px;">Unverified</span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div style="flex: 1;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                        <div>
+                            <p style="color: var(--text-secondary); font-size: 14px;">Full Name</p>
+                            <p style="font-size: 16px; font-weight: 500;">{{ target_user.profile.name }}</p>
+                        </div>
+                        <div>
+                            <p style="color: var(--text-secondary); font-size: 14px;">Age & Gender</p>
+                            <p style="font-size: 16px; font-weight: 500;">{{ target_user.profile.age }} • {{ target_user.profile.gender|title }}</p>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 6px;">Bio</p>
+                        <div style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; border: 1px solid var(--glass-border); min-height: 80px;">
+                            {{ target_user.profile.bio|default:"No bio provided." }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <ion-icon name="person-outline" style="font-size: 40px; margin-bottom: 10px; opacity: 0.5;"></ion-icon>
+                <p>This user has not set up their public profile yet.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
