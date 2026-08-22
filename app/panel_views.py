@@ -5,7 +5,7 @@ from django.contrib import messages
 from django.utils import timezone
 from datetime import timedelta
 from django.db.models import Count
-from .models import User, CallHistory, Offer
+from .models import User, CallHistory, Offer, AgentTaskConfig, GlobalSetting, WithdrawalRequest, Wallet, Transaction
 
 def is_superadmin(user):
     return user.is_authenticated and user.is_superuser
@@ -52,8 +52,16 @@ def dashboard(request):
 
 @user_passes_test(is_superadmin, login_url='admin_panel:login')
 def users_list(request):
-    users = User.objects.filter(is_superuser=False).order_by('-date_joined')
-    return render(request, 'admin_panel/users.html', {'users': users})
+    tab = request.GET.get('tab', 'all')
+    
+    queryset = User.objects.filter(is_superuser=False).order_by('-date_joined')
+    
+    if tab == 'users':
+        queryset = queryset.filter(is_staff=False)
+    elif tab == 'agents':
+        queryset = queryset.filter(is_staff=True)
+        
+    return render(request, 'admin_panel/users.html', {'users': queryset, 'active_tab': tab})
 
 @user_passes_test(is_superadmin, login_url='admin_panel:login')
 def user_detail(request, user_id):
@@ -74,3 +82,103 @@ def call_detail(request, call_id):
 def offers_list(request):
     offers = Offer.objects.all().order_by('-created_at')
     return render(request, 'admin_panel/offers.html', {'offers': offers})
+
+@user_passes_test(is_superadmin, login_url='admin_panel:login')
+def create_agent(request):
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        email = request.POST.get('email')
+        phone = request.POST.get('phone_number')
+        password = request.POST.get('password')
+        
+        if User.objects.filter(username=username).exists():
+            messages.error(request, 'Username already exists')
+        else:
+            user = User.objects.create_user(username=username, email=email, password=password)
+            user.phone_number = phone
+            user.is_staff = True
+            user.save()
+            messages.success(request, 'Agent created successfully!')
+            return redirect('admin_panel:users')
+            
+    return render(request, 'admin_panel/create_agent.html')
+
+@user_passes_test(is_superadmin, login_url='admin_panel:login')
+def task_config(request):
+    config = AgentTaskConfig.load()
+    if request.method == 'POST':
+        config.daily_call_target = request.POST.get('daily_target', 50)
+        config.weekly_call_target = request.POST.get('weekly_target', 250)
+        config.monthly_call_target = request.POST.get('monthly_target', 1000)
+        config.save()
+        messages.success(request, 'Task configuration updated!')
+        return redirect('admin_panel:tasks')
+        
+    return render(request, 'admin_panel/task_config.html', {'config': config})
+
+@user_passes_test(is_superadmin, login_url='admin_panel:login')
+def settings_list(request):
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'create':
+            key = request.POST.get('key')
+            value = request.POST.get('value')
+            data_type = request.POST.get('data_type')
+            desc = request.POST.get('description')
+            if not GlobalSetting.objects.filter(key=key).exists():
+                GlobalSetting.objects.create(key=key, value=value, data_type=data_type, description=desc)
+                messages.success(request, 'Setting created successfully!')
+            else:
+                messages.error(request, 'Setting with this key already exists.')
+        elif action == 'update':
+            setting_id = request.POST.get('setting_id')
+            value = request.POST.get('value')
+            setting = GlobalSetting.objects.get(id=setting_id)
+            setting.value = value
+            setting.save()
+            messages.success(request, 'Setting updated successfully!')
+        return redirect('admin_panel:settings')
+        
+    settings = GlobalSetting.objects.all().order_by('key')
+    return render(request, 'admin_panel/settings.html', {'settings': settings})
+
+@user_passes_test(is_superadmin, login_url='admin_panel:login')
+def withdrawals_list(request):
+    requests = WithdrawalRequest.objects.all().order_by('-created_at')
+    return render(request, 'admin_panel/withdrawals.html', {'requests': requests})
+
+@user_passes_test(is_superadmin, login_url='admin_panel:login')
+def handle_withdrawal(request, request_id, action):
+    try:
+        withdrawal = WithdrawalRequest.objects.get(id=request_id)
+        if withdrawal.status != 'pending':
+            messages.error(request, 'This request has already been processed.')
+            return redirect('admin_panel:withdrawals')
+            
+        if action == 'approve':
+            withdrawal.status = 'approved'
+            withdrawal.save()
+            messages.success(request, f'Approved withdrawal for {withdrawal.agent.username}')
+            
+        elif action == 'reject':
+            # Refund the wallet
+            wallet = withdrawal.agent.wallet
+            wallet.balance += withdrawal.amount
+            wallet.save()
+            
+            # Log refund transaction
+            Transaction.objects.create(
+                user=withdrawal.agent,
+                amount=withdrawal.amount,
+                transaction_type='earn_call', # or 'refund'
+                reference_id=f"refund_{withdrawal.id}"
+            )
+            
+            withdrawal.status = 'rejected'
+            withdrawal.save()
+            messages.success(request, f'Rejected withdrawal for {withdrawal.agent.username} and refunded {withdrawal.amount} coins.')
+            
+    except WithdrawalRequest.DoesNotExist:
+        messages.error(request, 'Request not found.')
+        
+    return redirect('admin_panel:withdrawals')

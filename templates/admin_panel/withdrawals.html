@@ -1,0 +1,63 @@
+{% extends 'admin_panel/base.html' %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1>Withdrawal Requests</h1>
+    <p class="subtitle">Review and process agent withdrawal requests.</p>
+</div>
+
+<div class="section-card glass">
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert {% if message.tags == 'error' %}error{% else %}success{% endif %}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Agent</th>
+                    <th>Amount (Coins)</th>
+                    <th>Status</th>
+                    <th>Requested At</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for req in requests %}
+                <tr>
+                    <td>
+                        <div class="user-cell">
+                            <div class="avatar small">{{ req.agent.username.0|upper }}</div>
+                            <span>{{ req.agent.username }}</span>
+                        </div>
+                    </td>
+                    <td><strong>{{ req.amount }}</strong></td>
+                    <td>
+                        <span class="status-badge {{ req.status }}">{{ req.status|title }}</span>
+                    </td>
+                    <td>{{ req.created_at|date:"M d, Y H:i" }}</td>
+                    <td>
+                        {% if req.status == 'pending' %}
+                        <div style="display: flex; gap: 10px;">
+                            <a href="{% url 'admin_panel:handle_withdrawal' req.id 'approve' %}" class="btn-primary" style="text-decoration: none; padding: 6px 12px; font-size: 12px; background: #28a745; border-radius: 4px;">Approve</a>
+                            <a href="{% url 'admin_panel:handle_withdrawal' req.id 'reject' %}" class="btn-primary" style="text-decoration: none; padding: 6px 12px; font-size: 12px; background: #dc3545; border-radius: 4px;">Reject</a>
+                        </div>
+                        {% else %}
+                            <span style="color: #aaa; font-size: 12px;">Processed</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="text-align: center;">No withdrawal requests found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

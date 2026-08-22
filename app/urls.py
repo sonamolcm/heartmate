@@ -38,4 +38,9 @@ urlpatterns = [
     path('api/calls/initiate/', views.initiate_call, name='initiate_call'),
     path('api/calls/<int:call_id>/status/', views.update_call_status, name='update_call_status'),
     path('api/calls/history/', views.get_call_history, name='get_call_history'),
+    
+    # Agent URLs
+    path('api/agent/dashboard/', views.agent_dashboard, name='agent_dashboard'),
+    path('api/agent/wallet/', views.agent_wallet, name='agent_wallet'),
+    path('api/agent/withdraw/', views.request_withdrawal, name='request_withdrawal'),
 ]

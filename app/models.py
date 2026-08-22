@@ -117,3 +117,80 @@ class CallHistory(models.Model):
 
     def __str__(self):
         return f"Call: {self.caller.username} -> {self.receiver.username} ({self.status})"
+
+class AgentTaskConfig(models.Model):
+    daily_call_target = models.PositiveIntegerField(default=50)
+    weekly_call_target = models.PositiveIntegerField(default=250)
+    monthly_call_target = models.PositiveIntegerField(default=1000)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        self.pk = 1 # Force it to be a singleton
+        super(AgentTaskConfig, self).save(*args, **kwargs)
+
+    @classmethod
+    def load(cls):
+        obj, created = cls.objects.get_or_create(pk=1)
+        return obj
+
+class GlobalSetting(models.Model):
+    TYPE_CHOICES = [
+        ('int', 'Integer'),
+        ('float', 'Float'),
+        ('bool', 'Boolean'),
+        ('str', 'String'),
+    ]
+    key = models.CharField(max_length=50, unique=True)
+    value = models.CharField(max_length=255)
+    data_type = models.CharField(max_length=10, choices=TYPE_CHOICES, default='str')
+    description = models.TextField(blank=True, null=True)
+
+    def get_typed_value(self):
+        if self.data_type == 'int':
+            return int(self.value)
+        elif self.data_type == 'float':
+            return float(self.value)
+        elif self.data_type == 'bool':
+            return str(self.value).lower() in ['true', '1', 't', 'y', 'yes']
+        return str(self.value)
+        
+    def __str__(self):
+        return f"{self.key}: {self.value} ({self.data_type})"
+
+class Wallet(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='wallet')
+    balance = models.IntegerField(default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.user.username}'s Wallet - Balance: {self.balance}"
+
+class WithdrawalRequest(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+    agent = models.ForeignKey(User, on_delete=models.CASCADE, related_name='withdrawals')
+    amount = models.IntegerField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return f"{self.agent.username} - {self.amount} ({self.status})"
+
+class Transaction(models.Model):
+    TYPE_CHOICES = [
+        ('earn_call', 'Earned from Call'),
+        ('withdrawal', 'Withdrawal'),
+        ('coin_purchase', 'Coin Purchase'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='transactions')
+    amount = models.IntegerField()
+    transaction_type = models.CharField(max_length=20, choices=TYPE_CHOICES)
+    reference_id = models.CharField(max_length=100, blank=True, null=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.amount} ({self.transaction_type})"

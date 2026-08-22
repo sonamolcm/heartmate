@@ -1,0 +1,55 @@
+{% extends 'admin_panel/base.html' %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1>Create Agent</h1>
+    <p class="subtitle">Provision a new agent account. They will be able to log into the mobile app and access the Agent Dashboard.</p>
+</div>
+
+<div class="section-card glass" style="max-width: 600px;">
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert {% if message.tags == 'error' %}error{% else %}success{% endif %}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <form method="POST" action="{% url 'admin_panel:create_agent' %}">
+        {% csrf_token %}
+        <div class="input-group">
+            <label>Username</label>
+            <div class="input-wrapper">
+                <ion-icon name="person-outline"></ion-icon>
+                <input type="text" name="username" required placeholder="Agent Username">
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label>Email Address</label>
+            <div class="input-wrapper">
+                <ion-icon name="mail-outline"></ion-icon>
+                <input type="email" name="email" required placeholder="agent@heartmate.com">
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label>Phone Number</label>
+            <div class="input-wrapper">
+                <ion-icon name="call-outline"></ion-icon>
+                <input type="text" name="phone_number" required placeholder="+1234567890">
+            </div>
+        </div>
+
+        <div class="input-group" style="margin-bottom: 30px;">
+            <label>Password</label>
+            <div class="input-wrapper">
+                <ion-icon name="lock-closed-outline"></ion-icon>
+                <input type="password" name="password" required placeholder="Enter secure password">
+            </div>
+        </div>
+
+        <button type="submit" class="btn-primary">Create Agent Account</button>
+    </form>
+</div>
+{% endblock %}

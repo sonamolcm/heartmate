@@ -67,7 +67,7 @@
                         <td>
                             <span class="status-badge {{ call.status }}">{{ call.status|title }}</span>
                         </td>
-                        <td>{{ call.start_time|timesince }} ago</td>
+                        <td>{{ call.start_time|date:"M d, Y H:i" }}</td>
                         <td>
                             <a href="{% url 'admin_panel:call_detail' call.id %}" class="btn-text">View</a>
                         </td>

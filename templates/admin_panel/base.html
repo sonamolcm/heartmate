@@ -37,6 +37,22 @@
                     <ion-icon name="pricetag-outline"></ion-icon>
                     <span>Offers</span>
                 </a>
+                <a href="{% url 'admin_panel:create_agent' %}" class="nav-item {% if request.resolver_match.url_name == 'create_agent' %}active{% endif %}">
+                    <ion-icon name="person-add-outline"></ion-icon>
+                    <span>Create Agent</span>
+                </a>
+                <a href="{% url 'admin_panel:tasks' %}" class="nav-item {% if request.resolver_match.url_name == 'tasks' %}active{% endif %}">
+                    <ion-icon name="checkbox-outline"></ion-icon>
+                    <span>Task Settings</span>
+                </a>
+                <a href="{% url 'admin_panel:withdrawals' %}" class="nav-item {% if request.resolver_match.url_name == 'withdrawals' %}active{% endif %}">
+                    <ion-icon name="cash-outline"></ion-icon>
+                    <span>Withdrawals</span>
+                </a>
+                <a href="{% url 'admin_panel:settings' %}" class="nav-item {% if request.resolver_match.url_name == 'settings' %}active{% endif %}">
+                    <ion-icon name="settings-outline"></ion-icon>
+                    <span>Global Settings</span>
+                </a>
             </nav>
             
             <div class="sidebar-footer">

@@ -1,11 +1,13 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
-from .models import User, Profile, Offer, TermsAndConditions, PrivacyPolicy, HelpLine, UserActivity, CallHistory
+from .models import User, Profile, Offer, TermsAndConditions, PrivacyPolicy, HelpLine, UserActivity, CallHistory, Wallet, Transaction, WithdrawalRequest
 
 class UserSerializer(serializers.ModelSerializer):
+    is_agent = serializers.BooleanField(source='is_staff', read_only=True)
+
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'phone_number', 'is_online', 'is_on_call', 'coins', 'created_at']
+        fields = ['id', 'username', 'email', 'phone_number', 'is_online', 'is_on_call', 'coins', 'created_at', 'is_agent']
         read_only_fields = ['id', 'created_at', 'is_online', 'is_on_call', 'coins']
 
 class ProfileSerializer(serializers.ModelSerializer):
@@ -116,5 +118,19 @@ class CallHistorySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CallHistory
-        fields = ['id', 'caller', 'receiver', 'channel_name', 'call_type', 'status', 'start_time', 'end_time']
-        read_only_fields = ['id', 'caller', 'receiver', 'channel_name', 'start_time']
+        fields = ['id', 'caller', 'receiver', 'start_time', 'end_time', 'duration', 'status']
+
+class TransactionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Transaction
+        fields = ['id', 'amount', 'transaction_type', 'reference_id', 'created_at']
+
+class WithdrawalRequestSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WithdrawalRequest
+        fields = ['id', 'amount', 'status', 'created_at', 'updated_at']
+
+class WalletSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Wallet
+        fields = ['balance', 'updated_at']

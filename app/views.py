@@ -6,12 +6,23 @@ from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import login, logout
 from django.utils import timezone
-from .models import User, Profile, Offer, TermsAndConditions, PrivacyPolicy, HelpLine, UserActivity, CallHistory
+from django.shortcuts import render
+from rest_framework import status
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.authtoken.models import Token
+from django.contrib.auth import login, logout
+from django.utils import timezone
+from django.db.models import Count, Sum
+from datetime import timedelta
+from .models import User, Profile, Offer, TermsAndConditions, PrivacyPolicy, HelpLine, UserActivity, CallHistory, AgentTaskConfig, GlobalSetting, Wallet, Transaction, WithdrawalRequest
 from .serializers import (
     UserSerializer, ProfileSerializer, UserRegistrationSerializer,
     GoogleAuthSerializer, PhoneAuthSerializer, LoginSerializer,
     OfferSerializer, TermsAndConditionsSerializer, PrivacyPolicySerializer,
-    HelpLineSerializer, OnlineUserSerializer, OnCallUserSerializer, CallHistorySerializer
+    HelpLineSerializer, OnlineUserSerializer, OnCallUserSerializer, CallHistorySerializer,
+    WalletSerializer, TransactionSerializer
 )
 import uuid
 from django.conf import settings
@@ -720,8 +731,28 @@ def update_call_status(request, call_id):
         return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
         
     call.status = new_status
-    if new_status == 'completed':
+    if new_status == 'completed' and not call.end_time:
         call.end_time = timezone.now()
+        
+        # Reward the agent (receiver)
+        if call.receiver.is_staff:
+            try:
+                reward_setting = GlobalSetting.objects.get(key='call_reward_amount')
+                reward_amount = reward_setting.get_typed_value()
+            except GlobalSetting.DoesNotExist:
+                reward_amount = 0
+                
+            if reward_amount > 0:
+                wallet, _ = Wallet.objects.get_or_create(user=call.receiver)
+                wallet.balance += reward_amount
+                wallet.save()
+                
+                Transaction.objects.create(
+                    user=call.receiver,
+                    amount=reward_amount,
+                    transaction_type='earn_call',
+                    reference_id=str(call.id)
+                )
         
     call.save()
     
@@ -758,3 +789,148 @@ def get_call_history(request):
     
     serializer = CallHistorySerializer(calls, many=True)
     return Response(serializer.data)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def agent_dashboard(request):
+    """
+    Returns Agent specific dashboard data including task targets vs completion.
+    Only accessible by users with is_staff=True.
+    """
+    user = request.user
+    if not user.is_staff:
+        return Response({"error": "Unauthorized. Agent access only."}, status=status.HTTP_403_FORBIDDEN)
+        
+    config = AgentTaskConfig.load()
+    
+    # Get all completed calls where this agent was the receiver
+    # (assuming agents are the ones receiving calls on the platform)
+    completed_calls = CallHistory.objects.filter(
+        receiver=user, 
+        status='completed'
+    )
+    
+    # Today's stats
+    today = timezone.now().date()
+    daily_completed = completed_calls.filter(start_time__date=today).count()
+    
+    # Week's stats (assuming week starts on Monday)
+    start_of_week = today - timedelta(days=today.weekday())
+    weekly_completed = completed_calls.filter(start_time__date__gte=start_of_week).count()
+    
+    # Month's stats
+    start_of_month = today.replace(day=1)
+    monthly_completed = completed_calls.filter(start_time__date__gte=start_of_month).count()
+    
+    # Calculate durations
+    total_duration = completed_calls.aggregate(total=Sum('duration'))['total'] or 0
+    today_duration = completed_calls.filter(start_time__date=today).aggregate(total=Sum('duration'))['total'] or 0
+    
+    return Response({
+        "status": "success",
+        "agent": {
+            "username": user.username,
+            "coins_earned": user.coins,
+            "total_duration_seconds": total_duration,
+            "today_duration_seconds": today_duration
+        },
+        "tasks": {
+            "daily": {
+                "completed": daily_completed,
+                "target": config.daily_call_target,
+                "progress_percentage": min(100, int((daily_completed / config.daily_call_target) * 100)) if config.daily_call_target else 0
+            },
+            "weekly": {
+                "completed": weekly_completed,
+                "target": config.weekly_call_target,
+                "progress_percentage": min(100, int((weekly_completed / config.weekly_call_target) * 100)) if config.weekly_call_target else 0
+            },
+            "monthly": {
+                "completed": monthly_completed,
+                "target": config.monthly_call_target,
+                "progress_percentage": min(100, int((monthly_completed / config.monthly_call_target) * 100)) if config.monthly_call_target else 0
+            }
+        }
+    })
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def agent_wallet(request):
+    """
+    Returns Agent's wallet balance and transaction history.
+    """
+    user = request.user
+    if not user.is_staff:
+        return Response({"error": "Unauthorized. Agent access only."}, status=status.HTTP_403_FORBIDDEN)
+        
+    wallet, _ = Wallet.objects.get_or_create(user=user)
+    transactions = Transaction.objects.filter(user=user).order_by('-created_at')
+    
+    return Response({
+        "status": "success",
+        "wallet": WalletSerializer(wallet).data,
+        "history": TransactionSerializer(transactions, many=True).data
+    })
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def request_withdrawal(request):
+    """
+    Allows agent to request a withdrawal if they meet the minimum threshold.
+    """
+    user = request.user
+    if not user.is_staff:
+        return Response({"error": "Unauthorized. Agent access only."}, status=status.HTTP_403_FORBIDDEN)
+        
+    amount = request.data.get('amount')
+    if not amount:
+        return Response({"error": "Amount is required"}, status=status.HTTP_400_BAD_REQUEST)
+        
+    try:
+        amount = int(amount)
+        if amount <= 0:
+            raise ValueError
+    except ValueError:
+        return Response({"error": "Invalid amount"}, status=status.HTTP_400_BAD_REQUEST)
+        
+    wallet, _ = Wallet.objects.get_or_create(user=user)
+    
+    # Get minimum withdrawal amount from settings
+    try:
+        min_amount_setting = GlobalSetting.objects.get(key='withdrawal_min_amount')
+        min_amount = min_amount_setting.get_typed_value()
+    except GlobalSetting.DoesNotExist:
+        min_amount = 500 # fallback default
+        
+    if wallet.balance < min_amount:
+        return Response({
+            "error": f"Insufficient balance. Minimum withdrawal is {min_amount} coins.",
+            "min_amount": min_amount,
+            "current_balance": wallet.balance
+        }, status=status.HTTP_400_BAD_REQUEST)
+        
+    if amount > wallet.balance:
+        return Response({"error": "Requested amount exceeds balance"}, status=status.HTTP_400_BAD_REQUEST)
+        
+    # Deduct from wallet and create request
+    wallet.balance -= amount
+    wallet.save()
+    
+    request_obj = WithdrawalRequest.objects.create(
+        agent=user,
+        amount=amount,
+        status='pending'
+    )
+    
+    Transaction.objects.create(
+        user=user,
+        amount=-amount,
+        transaction_type='withdrawal',
+        reference_id=str(request_obj.id)
+    )
+    
+    return Response({
+        "status": "success",
+        "message": "Withdrawal request submitted successfully",
+        "remaining_balance": wallet.balance
+    })
