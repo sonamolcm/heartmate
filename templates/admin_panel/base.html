@@ -49,6 +49,10 @@
                     <ion-icon name="cash-outline"></ion-icon>
                     <span>Withdrawals</span>
                 </a>
+                <a href="{% url 'admin_panel:transactions' %}" class="nav-item {% if request.resolver_match.url_name == 'transactions' %}active{% endif %}">
+                    <ion-icon name="receipt-outline"></ion-icon>
+                    <span>Transactions</span>
+                </a>
                 <a href="{% url 'admin_panel:settings' %}" class="nav-item {% if request.resolver_match.url_name == 'settings' %}active{% endif %}">
                     <ion-icon name="settings-outline"></ion-icon>
                     <span>Global Settings</span>

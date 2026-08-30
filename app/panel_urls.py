@@ -18,4 +18,5 @@ urlpatterns = [
     path('settings/', panel_views.settings_list, name='settings'),
     path('withdrawals/', panel_views.withdrawals_list, name='withdrawals'),
     path('withdrawals/<int:request_id>/<str:action>/', panel_views.handle_withdrawal, name='handle_withdrawal'),
+    path('transactions/', panel_views.transactions_list, name='transactions'),
 ]

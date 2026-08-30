@@ -182,3 +182,24 @@ def handle_withdrawal(request, request_id, action):
         messages.error(request, 'Request not found.')
         
     return redirect('admin_panel:withdrawals')
+
+@user_passes_test(is_superadmin, login_url='admin_panel:login')
+def transactions_list(request):
+    tab_type = request.GET.get('type', 'all')
+    
+    if tab_type == 'earn_call':
+        transactions = Transaction.objects.filter(transaction_type='earn_call')
+    elif tab_type == 'withdrawal':
+        transactions = Transaction.objects.filter(transaction_type='withdrawal')
+    elif tab_type == 'coin_purchase':
+        transactions = Transaction.objects.filter(transaction_type='coin_purchase')
+    else:
+        transactions = Transaction.objects.all()
+        tab_type = 'all'
+        
+    transactions = transactions.order_by('-created_at')
+    
+    return render(request, 'admin_panel/transactions.html', {
+        'transactions': transactions,
+        'current_tab': tab_type
+    })

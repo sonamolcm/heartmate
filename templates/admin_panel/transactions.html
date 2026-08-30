@@ -1,0 +1,62 @@
+{% extends 'admin_panel/base.html' %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1>Transactions</h1>
+    <p class="subtitle">Global ledger of all system transactions.</p>
+</div>
+
+<div class="filter-tabs">
+    <a href="?type=all" class="tab {% if current_tab == 'all' %}active{% endif %}">All</a>
+    <a href="?type=earn_call" class="tab {% if current_tab == 'earn_call' %}active{% endif %}">Earned via Calls</a>
+    <a href="?type=withdrawal" class="tab {% if current_tab == 'withdrawal' %}active{% endif %}">Withdrawals</a>
+    <a href="?type=coin_purchase" class="tab {% if current_tab == 'coin_purchase' %}active{% endif %}">Purchases</a>
+</div>
+
+<div class="section-card glass">
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Type</th>
+                    <th>Amount (Coins)</th>
+                    <th>Reference ID</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for txn in transactions %}
+                <tr>
+                    <td>
+                        <div class="user-cell">
+                            <div class="avatar small">{{ txn.user.username.0|upper }}</div>
+                            <span>{{ txn.user.username }}</span>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="status-badge 
+                            {% if txn.transaction_type == 'earn_call' %}success
+                            {% elif txn.transaction_type == 'withdrawal' %}error
+                            {% else %}offline{% endif %}">
+                            {{ txn.get_transaction_type_display }}
+                        </span>
+                    </td>
+                    <td>
+                        <strong style="color: {% if txn.amount > 0 %}#28a745{% else %}#dc3545{% endif %};">
+                            {% if txn.amount > 0 %}+{% endif %}{{ txn.amount }}
+                        </strong>
+                    </td>
+                    <td style="color: #aaa; font-family: monospace;">{{ txn.reference_id|default:"-" }}</td>
+                    <td>{{ txn.created_at|date:"M d, Y H:i" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="text-align: center;">No transactions found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
