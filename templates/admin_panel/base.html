@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Heartmate Admin</title>
-    <link rel="stylesheet" href="/static/css/admin.css">
+    <link rel="stylesheet" href="/static/css/admin.css?v=2.0">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -29,6 +29,18 @@
                     <ion-icon name="people-outline"></ion-icon>
                     <span>Users</span>
                 </a>
+                <a href="{% url 'admin_panel:agents' %}" class="nav-item {% if request.resolver_match.url_name == 'agents' %}active{% endif %}">
+                    <ion-icon name="headset-outline"></ion-icon>
+                    <span>Agents</span>
+                </a>
+                <a href="{% url 'admin_panel:pending_agents' %}" class="nav-item {% if request.resolver_match.url_name == 'pending_agents' %}active{% endif %}">
+                    <ion-icon name="hourglass-outline"></ion-icon>
+                    <span>Pending Agents</span>
+                </a>
+                <a href="{% url 'admin_panel:agent_applications' %}" class="nav-item {% if request.resolver_match.url_name == 'agent_applications' %}active{% endif %}">
+                    <ion-icon name="document-text-outline"></ion-icon>
+                    <span>Agent Applications</span>
+                </a>
                 <a href="{% url 'admin_panel:calls' %}" class="nav-item {% if request.resolver_match.url_name == 'calls' %}active{% endif %}">
                     <ion-icon name="call-outline"></ion-icon>
                     <span>Calls</span>
@@ -52,6 +64,10 @@
                 <a href="{% url 'admin_panel:transactions' %}" class="nav-item {% if request.resolver_match.url_name == 'transactions' %}active{% endif %}">
                     <ion-icon name="receipt-outline"></ion-icon>
                     <span>Transactions</span>
+                </a>
+                <a href="{% url 'admin_panel:notifications' %}" class="nav-item {% if request.resolver_match.url_name == 'notifications' %}active{% endif %}">
+                    <ion-icon name="notifications-outline"></ion-icon>
+                    <span>Push Notifications</span>
                 </a>
                 <a href="{% url 'admin_panel:settings' %}" class="nav-item {% if request.resolver_match.url_name == 'settings' %}active{% endif %}">
                     <ion-icon name="settings-outline"></ion-icon>
@@ -80,7 +96,7 @@
             <header class="topbar glass">
                 <!-- Search removed as requested -->
                 <div class="topbar-actions">
-                    <button class="icon-btn" onclick="alert('No new notifications');"><ion-icon name="notifications-outline"></ion-icon></button>
+                    <a href="{% url 'admin_panel:notifications' %}" class="icon-btn" title="Push Notifications"><ion-icon name="notifications-outline"></ion-icon></a>
                 </div>
             </header>
 

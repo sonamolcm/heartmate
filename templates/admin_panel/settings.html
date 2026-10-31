@@ -17,7 +17,7 @@
 
     <div style="display: flex; gap: 20px; align-items: flex-start;">
         <!-- New Setting Form -->
-        <div style="flex: 1; padding-right: 20px; border-right: 1px solid rgba(255,255,255,0.1);">
+        <div style="flex: 1; padding-right: 20px; border-right: 1px solid var(--divider);">
             <h3>Create New Setting</h3>
             <form method="POST" action="{% url 'admin_panel:settings' %}" style="margin-top: 15px;">
                 {% csrf_token %}
@@ -25,17 +25,17 @@
                 
                 <div class="input-group">
                     <label>Key Name (e.g. withdrawal_min_amount)</label>
-                    <input type="text" name="key" required style="width: 100%; padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white;">
+                    <input type="text" name="key" required style="width: 100%; padding: 10px; border-radius: 8px; background: var(--background); border: 1px solid var(--secondary); color: var(--text-primary);">
                 </div>
                 
                 <div class="input-group" style="margin-top: 10px;">
                     <label>Value</label>
-                    <input type="text" name="value" required style="width: 100%; padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white;">
+                    <input type="text" name="value" required style="width: 100%; padding: 10px; border-radius: 8px; background: var(--background); border: 1px solid var(--secondary); color: var(--text-primary);">
                 </div>
                 
                 <div class="input-group" style="margin-top: 10px;">
                     <label>Data Type</label>
-                    <select name="data_type" style="width: 100%; padding: 10px; border-radius: 8px; background: #1a1a2e; border: 1px solid rgba(255,255,255,0.1); color: white;">
+                    <select name="data_type" style="width: 100%; padding: 10px; border-radius: 8px; background: var(--surface); border: 1px solid var(--secondary); color: var(--text-primary);">
                         <option value="str">String</option>
                         <option value="int">Integer</option>
                         <option value="float">Float</option>
@@ -45,7 +45,7 @@
                 
                 <div class="input-group" style="margin-top: 10px;">
                     <label>Description</label>
-                    <input type="text" name="description" style="width: 100%; padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white;">
+                    <input type="text" name="description" style="width: 100%; padding: 10px; border-radius: 8px; background: var(--background); border: 1px solid var(--secondary); color: var(--text-primary);">
                 </div>
                 
                 <button type="submit" class="btn-primary" style="margin-top: 15px; width: 100%;">Create Setting</button>
@@ -73,12 +73,12 @@
                                 {% csrf_token %}
                                 <input type="hidden" name="action" value="update">
                                 <input type="hidden" name="setting_id" value="{{ setting.id }}">
-                                <input type="text" name="value" value="{{ setting.value }}" style="width: 80px; padding: 4px 8px; border-radius: 4px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white;">
+                                <input type="text" name="value" value="{{ setting.value }}" style="width: 80px; padding: 4px 8px; border-radius: 4px; background: var(--background); border: 1px solid var(--secondary); color: var(--text-primary);">
                                 <button type="submit" class="btn-primary" style="padding: 4px 8px; font-size: 12px; border-radius: 4px;">Save</button>
                             </form>
                         </td>
                         <td>{{ setting.get_data_type_display }}</td>
-                        <td style="font-size: 12px; color: #aaa;">{{ setting.description|default:"-" }}</td>
+                        <td style="font-size: 12px; color: var(--text-secondary);">{{ setting.description|default:"-" }}</td>
                         <td></td>
                     </tr>
                     {% empty %}
