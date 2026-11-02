@@ -138,58 +138,99 @@ class UserRegistrationSerializer(serializers.Serializer):
     profile = serializers.DictField(write_only=True, required=False)
 
     def to_internal_value(self, data):
-        # Support QueryDict, dict, and nested structures
-        if hasattr(data, 'dict'):
-            payload = data.dict()
-        elif isinstance(data, dict):
-            payload = dict(data)
-        else:
-            payload = {}
+        if isinstance(data, str):
+            import json
+            try:
+                data = json.loads(data)
+            except Exception:
+                pass
 
-        # If data is wrapped inside a "user", "data", "payload" or "profile" root key
-        for wrapper in ['user', 'data', 'payload']:
-            nested = payload.get(wrapper)
+        if hasattr(data, 'dict'):
+            raw = data.dict()
+        elif isinstance(data, dict):
+            raw = dict(data)
+        else:
+            raw = {}
+
+        # If data is wrapped inside a root key (user, data, payload, profile, body, params, input)
+        for wrapper in ['user', 'data', 'payload', 'profile', 'body', 'params', 'input']:
+            nested = raw.get(wrapper)
             if isinstance(nested, dict):
                 for k, v in nested.items():
-                    if k not in payload or not payload[k]:
-                        payload[k] = v
+                    if k not in raw or not raw[k]:
+                        raw[k] = v
 
-        profile_data = payload.get('profile')
+        profile_data = raw.get('profile')
         if isinstance(profile_data, dict):
             for k in ['name', 'age', 'gender', 'bio', 'phone_number']:
-                if k in profile_data and (k not in payload or not payload[k]):
-                    payload[k] = profile_data[k]
+                if k in profile_data and (k not in raw or not raw[k]):
+                    raw[k] = profile_data[k]
 
-        # Field alias mapping for phone_number
-        for phone_key in ['phone', 'mobile', 'phone_no', 'phonenumber', 'contact', 'contact_number', 'user_phone']:
-            if phone_key in payload and not payload.get('phone_number'):
-                payload['phone_number'] = payload[phone_key]
+        payload = {}
+        for k, v in raw.items():
+            k_clean = str(k).strip().lower().replace('_', '').replace('-', '').replace(' ', '')
+            val = v.strip() if isinstance(v, str) else v
+
+            # Phone matching
+            if k_clean in ('phone', 'phonenumber', 'phoneno', 'mobile', 'mobilenumber', 'mobileno', 'contact', 'contactnumber', 'userphone', 'cell', 'cellphone', 'tel'):
+                if 'phone_number' not in payload or not payload['phone_number']:
+                    sval = str(val or '').strip().replace(' ', '').replace('-', '')
+                    if sval.startswith('+91') and len(sval) == 13:
+                        sval = sval[3:]
+                    elif sval.startswith('91') and len(sval) == 12:
+                        sval = sval[2:]
+                    elif sval.startswith('0') and len(sval) == 11:
+                        sval = sval[1:]
+                    payload['phone_number'] = sval
+
+            # Name matching
+            elif k_clean in ('name', 'fullname', 'username', 'firstname', 'displayname'):
+                if 'name' not in payload or not payload['name']:
+                    payload['name'] = val
+
+            # Age matching
+            elif k_clean in ('age', 'userage'):
+                if 'age' not in payload:
+                    try:
+                        payload['age'] = int(val)
+                    except Exception:
+                        payload['age'] = 18
+
+            # Gender matching
+            elif k_clean in ('gender', 'sex', 'usergender'):
+                if 'gender' not in payload or not payload['gender']:
+                    payload['gender'] = val
+
+            # OTP matching
+            elif k_clean in ('otp', 'otpcode', 'verificationcode', 'code'):
+                if 'otp' not in payload or not payload['otp']:
+                    payload['otp'] = str(val).strip()
+
+            else:
+                payload[str(k).strip()] = val
+
+        # Retain standard keys if present in raw
+        for std_k in ['phone_number', 'name', 'age', 'gender', 'otp', 'password', 'bio', 'profile_picture']:
+            if std_k not in payload and std_k in raw:
+                payload[std_k] = raw[std_k]
 
         # If phone_number is still missing, check username if numeric
-        if not payload.get('phone_number') and 'username' in payload and str(payload['username']).strip().isdigit():
-            payload['phone_number'] = payload['username']
-
-        # Field alias mapping for name
-        for name_key in ['username', 'full_name', 'fullname', 'first_name', 'display_name']:
-            if name_key in payload and not payload.get('name'):
-                payload['name'] = payload[name_key]
+        if not payload.get('phone_number') and raw.get('username') and str(raw['username']).strip().isdigit():
+            payload['phone_number'] = str(raw['username']).strip()
 
         # Smart fallback for name if empty
         if not payload.get('name'):
             phone = str(payload.get('phone_number', '')).strip()
             payload['name'] = f"User_{phone[-4:]}" if len(phone) >= 4 else "User"
 
-        # Field alias mapping for gender
-        for gender_key in ['sex', 'user_gender']:
-            if gender_key in payload and not payload.get('gender'):
-                payload['gender'] = payload[gender_key]
-
-        # String to int conversion for age if string passed (e.g. "24")
-        if 'age' in payload and payload['age'] is not None and str(payload['age']).strip() != '':
-            clean_age = str(payload['age']).strip()
-            payload['age'] = int(clean_age) if clean_age.isdigit() else 18
-        else:
+        # Fallback for age
+        if 'age' not in payload or payload['age'] is None or str(payload['age']).strip() == '':
             payload['age'] = 18
+        else:
+            try:
+                payload['age'] = int(str(payload['age']).strip())
+            except Exception:
+                payload['age'] = 18
 
         # Normalize gender
         if payload.get('gender'):

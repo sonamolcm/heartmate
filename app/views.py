@@ -76,15 +76,22 @@ def _extract_request_data(request):
     """
     Robustly extract data dictionary from:
     1. request.data (parsed json, form-data, multipart)
-    2. request.body (raw json string fallback if Content-Type missing)
-    3. request.query_params / request.GET (URL query parameters)
+    2. request.POST (standard Django post dict)
+    3. request.body (raw json string fallback if Content-Type missing or text/plain)
+    4. request.query_params / request.GET (URL query parameters)
     """
     data = {}
     if hasattr(request, 'data'):
-        if isinstance(request.data, dict):
+        if isinstance(request.data, dict) and request.data:
             data.update(request.data)
-        elif hasattr(request.data, 'dict'):
+        elif hasattr(request.data, 'dict') and request.data:
             data.update(request.data.dict())
+
+    if hasattr(request, 'POST') and request.POST:
+        post_dict = request.POST.dict() if hasattr(request.POST, 'dict') else dict(request.POST)
+        for k, v in post_dict.items():
+            if k not in data or not data[k]:
+                data[k] = v
 
     if not data and hasattr(request, 'body') and request.body:
         try:
@@ -196,7 +203,12 @@ def register_user(request):
 
         UserActivity.objects.create(user=user, activity_type='registration')
         return Response(_build_auth_response(user, token.key, 'User registered successfully'), status=status.HTTP_201_CREATED)
-    return _format_error_response(serializer.errors)
+
+    resp = _format_error_response(serializer.errors)
+    resp.data['received_keys'] = list(payload.keys())
+    if not payload:
+        resp.data['hint'] = "The request body was empty. In Postman, go to 'Body' tab -> select 'raw' -> choose 'JSON', and send: {\"phone_number\": \"9876543210\", \"gender\": \"male\"}"
+    return resp
 
 # Dedicated alias for /api/user/register/
 user_register = register_user

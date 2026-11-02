@@ -466,8 +466,19 @@ class UserRegistrationAndAuthTests(TestCase):
         # Verify the error tells the user specifically what is required
         self.assertIn('phone_number', res.data['error'])
 
+    def test_user_register_camelcase_and_country_code(self):
+        res = self.client.post('/api/user/register/', {
+            'phoneNumber': '+919876500004',
+            'fullName': 'Vikram',
+            'gender': 'male'
+        }, format='json')
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res.data['user']['phone_number'], '9876500004')
+        self.assertEqual(res.data['user']['profile']['name'], 'Vikram')
+
     def test_user_register_get_helper(self):
         res = self.client.get('/api/user/register/')
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertIn('example_json_body', res.data)
+
 
