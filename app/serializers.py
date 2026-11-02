@@ -130,12 +130,50 @@ class UserRegistrationSerializer(serializers.Serializer):
     phone_number = serializers.CharField(required=True)
     name = serializers.CharField(required=True)
     age = serializers.IntegerField(required=True)
+    gender = serializers.CharField(required=False, allow_blank=True, default='')
     otp = serializers.CharField(required=False, allow_blank=True, default='')
     password = serializers.CharField(write_only=True, required=False, allow_blank=True, default='')
-    gender = serializers.CharField(write_only=True, required=False, allow_blank=True, default='')
-    bio = serializers.CharField(write_only=True, required=False, allow_blank=True, default='')
-    profile_picture = serializers.ImageField(write_only=True, required=False, allow_null=True)
+    bio = serializers.CharField(required=False, allow_blank=True, default='')
+    profile_picture = serializers.ImageField(required=False, allow_null=True)
     profile = serializers.DictField(write_only=True, required=False)
+
+    def to_internal_value(self, data):
+        # Support QueryDict, dict, and nested structures
+        if hasattr(data, 'dict'):
+            payload = data.dict()
+        elif isinstance(data, dict):
+            payload = dict(data)
+        else:
+            payload = {}
+
+        # If data is wrapped inside a nested "profile" dict
+        profile_data = payload.get('profile')
+        if isinstance(profile_data, dict):
+            for k in ['name', 'age', 'gender', 'bio', 'phone_number']:
+                if k in profile_data and k not in payload:
+                    payload[k] = profile_data[k]
+
+        # Field alias mapping
+        if 'phone' in payload and 'phone_number' not in payload:
+            payload['phone_number'] = payload['phone']
+        if 'mobile' in payload and 'phone_number' not in payload:
+            payload['phone_number'] = payload['mobile']
+        if 'username' in payload and 'name' not in payload:
+            payload['name'] = payload['username']
+        if 'full_name' in payload and 'name' not in payload:
+            payload['name'] = payload['full_name']
+
+        # String to int conversion for age if string passed (e.g. "24")
+        if 'age' in payload and isinstance(payload['age'], str):
+            clean_age = payload['age'].strip()
+            if clean_age.isdigit():
+                payload['age'] = int(clean_age)
+
+        # Normalize gender
+        if 'gender' in payload and payload['gender']:
+            payload['gender'] = str(payload['gender']).strip().lower()
+
+        return super().to_internal_value(payload)
 
     def validate_phone_number(self, value):
         val = validate_10_digit_number(value, "Phone number")
@@ -153,6 +191,16 @@ class UserRegistrationSerializer(serializers.Serializer):
         if value < 18 or value > 120:
             raise serializers.ValidationError("Age must be at least 18.")
         return value
+
+    def validate_gender(self, value):
+        if value:
+            val = str(value).strip().lower()
+            if val in ('male', 'm'):
+                return 'male'
+            elif val in ('female', 'f'):
+                return 'female'
+            return 'other'
+        return ''
 
     def validate(self, attrs):
         phone = attrs.get('phone_number')
@@ -185,7 +233,7 @@ class UserRegistrationSerializer(serializers.Serializer):
             user.set_unusable_password()
         user.save()
 
-        # Save profile strictly with user-provided data - no hardcoded fallbacks
+        # Save profile strictly with user-provided data including gender
         Profile.objects.create(
             user=user,
             name=name,
