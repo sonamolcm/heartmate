@@ -60,15 +60,30 @@ def validate_10_digit_number(value, field_name="Phone number"):
 class UserSerializer(serializers.ModelSerializer):
     is_agent = serializers.BooleanField(source='is_staff', read_only=True)
     role = serializers.SerializerMethodField()
+    name = serializers.SerializerMethodField()
+    age = serializers.SerializerMethodField()
+    gender = serializers.SerializerMethodField()
     profile = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'phone_number', 'is_online', 'is_on_call', 'coins', 'created_at', 'is_agent', 'role', 'agent_status', 'profile']
+        fields = ['id', 'username', 'email', 'phone_number', 'name', 'age', 'gender', 'is_online', 'is_on_call', 'coins', 'created_at', 'is_agent', 'role', 'agent_status', 'profile']
         read_only_fields = ['id', 'created_at', 'is_online', 'is_on_call', 'coins', 'is_agent', 'role', 'agent_status']
 
     def get_role(self, obj):
         return 'agent' if obj.is_staff else 'user'
+
+    def get_name(self, obj):
+        profile = getattr(obj, 'profile', None)
+        return profile.name if profile and profile.name else (obj.username or '')
+
+    def get_age(self, obj):
+        profile = getattr(obj, 'profile', None)
+        return profile.age if profile and profile.age else 18
+
+    def get_gender(self, obj):
+        profile = getattr(obj, 'profile', None)
+        return profile.gender if profile and profile.gender else 'other'
 
     def get_profile(self, obj):
         profile = getattr(obj, 'profile', None)

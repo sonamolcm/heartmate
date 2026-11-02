@@ -113,11 +113,21 @@ def _extract_request_data(request):
 
 def _build_auth_response(user, token_key, message, extra=None):
     """Standardized response payload for all authentication endpoints across User and Agent apps."""
+    profile = getattr(user, 'profile', None)
+    name = profile.name if profile and profile.name else (user.username or '')
+    age = profile.age if profile and profile.age else 18
+    gender = profile.gender if profile and profile.gender else 'other'
+    phone_number = user.phone_number or (profile.phone_number if profile else '')
+
     payload = {
         'token': token_key,
         'role': 'agent' if user.is_staff else 'user',
         'is_agent': bool(user.is_staff),
         'agent_status': user.agent_status if user.is_staff else None,
+        'phone_number': phone_number,
+        'name': name,
+        'age': age,
+        'gender': gender,
         'user': UserSerializer(user).data,
         'message': message,
     }
@@ -163,27 +173,22 @@ def send_otp(request):
 @api_view(['POST', 'GET'])
 @permission_classes([AllowAny])
 def register_user(request):
-    """Register a new customer for Heartmate User App using 10-digit phone number"""
+    """Register a new customer for Heartmate User App using phone_number, name, age, gender"""
     if request.method == 'GET':
         return Response({
             'status': 'Heartmate User Registration Endpoint',
-            'method_required': 'POST',
-            'required_fields': {
-                'phone_number': '10-digit phone number (e.g. 9876543210)'
-            },
-            'optional_fields': {
-                'name': 'Full name (defaults to User_<last4>)',
-                'age': 'Age (defaults to 18)',
-                'gender': 'Gender (male / female / other)',
-                'otp': '4-digit OTP received from /api/user/send-otp/',
-                'password': 'Optional account password'
+            'method': 'POST',
+            'fields': {
+                'phone_number': '10-digit mobile number (required, e.g. 9876543210)',
+                'name': 'User full name (e.g. Rahul Sharma)',
+                'age': 'User age (e.g. 24)',
+                'gender': 'Gender: male / female / other'
             },
             'example_json_body': {
                 'phone_number': '9876543210',
                 'name': 'Rahul Sharma',
                 'age': 24,
-                'gender': 'male',
-                'otp': '1234'
+                'gender': 'male'
             }
         }, status=status.HTTP_200_OK)
 
