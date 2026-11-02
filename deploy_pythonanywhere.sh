@@ -5,15 +5,16 @@ echo "=========================================="
 echo "🚀 UPDATING HEARTMATE ON PYTHONANYWHERE"
 echo "=========================================="
 
-# 1. Update remote URL to your new GitHub repository
-echo "[1/5] Updating git remote to https://github.com/sonamolcm/heartmate.git..."
-git remote set-url origin https://github.com/sonamolcm/heartmate.git
+# 1. Verify remote origin is configured
+CURRENT_REMOTE=$(git remote get-url origin 2>/dev/null || echo "")
+if [[ -z "$CURRENT_REMOTE" ]]; then
+    git remote add origin https://github.com/sonamolcm/heartmate.git
+fi
 
-# 2. Fetch and pull latest code from main branch
-echo "[2/5] Pulling latest code from main branch..."
-git fetch origin main
-git checkout main
-git pull origin main
+# 2. Fetch and pull latest code
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
+echo "[2/5] Pulling latest code from $CURRENT_BRANCH..."
+git pull origin "$CURRENT_BRANCH"
 
 # 3. Install/update python packages
 echo "[3/5] Installing dependencies..."
