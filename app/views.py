@@ -87,7 +87,8 @@ def _build_auth_response(user, token_key, message, extra=None):
 def send_otp(request):
     """
     Send / Generate OTP for a 10-digit phone number.
-    Returns 6-digit OTP code and records it with 10-minute validity.
+    Send / Generate OTP for a 10-digit phone number.
+    Returns 4-digit OTP code and records it with 10-minute validity.
     """
     raw_phone = request.data.get('phone_number')
     if not raw_phone:
@@ -102,7 +103,7 @@ def send_otp(request):
         return Response({'error': msg}, status=status.HTTP_400_BAD_REQUEST)
 
     import random
-    otp_code = f"{random.randint(100000, 999999)}"
+    otp_code = f"{random.randint(1000, 9999)}"
     PhoneOTP.objects.create(phone_number=phone_number, otp=otp_code)
 
     return Response({

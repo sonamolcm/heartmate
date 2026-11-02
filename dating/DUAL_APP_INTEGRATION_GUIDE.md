@@ -79,7 +79,7 @@ POST /api/user/send-otp/
   "status": "success",
   "message": "OTP sent successfully to 9876500001",
   "phone_number": "9876500001",
-  "otp": "855194"
+  "otp": "8551"
 }
 ```
 
@@ -90,7 +90,7 @@ POST /api/user/register/
   "phone_number": "9876500001",
   "name": "Rahul Sharma",
   "age": 24,
-  "otp": "855194",
+  "otp": "8551",
   "fcm_token": "optional_fcm_token_here"
 }
 ```
@@ -122,7 +122,7 @@ POST /api/user/register/
 POST /api/user/login/
 {
   "phone_number": "9876500001",
-  "otp": "855194",
+  "otp": "8551",
   "fcm_token": "optional_fcm_token_here"
 }
 ```
@@ -354,7 +354,7 @@ POST /api/agent/register/
   "phone_number": "9876500002",
   "name": "Priya",
   "age": 22,
-  "otp": "855194",
+  "otp": "8551",
   "bio": "Friendly, love travel & late night talks!",
   "reason": "Looking to host live video calls",
   "experience": "6 months video chatting",
@@ -368,7 +368,7 @@ POST /api/agent/register/
 POST /api/agent/login/
 {
   "phone_number": "9876500002",
-  "otp": "855194",
+  "otp": "8551",
   "fcm_token": "optional_fcm_token_here"
 }
 ```
@@ -615,3 +615,21 @@ Authorization: Token <token>
 | Suspended agent tries to log in | `403 Forbidden` | `{"error": "Your agent account has been suspended by administration. Please contact support."}` |
 | User tries to call with < 10 coins | `402 Payment Required` | `{"error": "Insufficient coin balance to initiate a call. Please recharge your coins."}` |
 | Insufficient withdrawal balance | `400 Bad Request` | `{"error": "Insufficient balance. Minimum withdrawal is 500 coins."}` |
+
+---
+
+## 8. Heartmate Admin Panel REST APIs
+
+For administrative operations, web dashboards, and mobile admin tools, complete REST APIs are available under `/api/admin/...`. See the complete specification in [ADMIN_API_DOCUMENTATION.md](file:///c:/Users/SONA/OneDrive/Desktop/Empire/Heartmate/Dating%20app/dating/ADMIN_API_DOCUMENTATION.md).
+
+Key admin API endpoint groups:
+- **Admin Auth**: `POST /api/admin/login/`, `POST /api/admin/logout/`, `GET /api/admin/me/`
+- **Dashboard Stats**: `GET /api/admin/dashboard/`
+- **Users Governance**: `GET /api/admin/users/`, `POST /api/admin/users/<id>/coins/`, `PATCH /api/admin/users/<id>/status/`
+- **Agents Governance**: `GET /api/admin/agents/`, `POST /api/admin/agents/<id>/status/`, `GET /api/admin/agents/<id>/paysheet-pdf/`
+- **Applications**: `GET /api/admin/agent-applications/`, `POST /api/admin/agent-applications/<id>/approve/`, `POST /api/admin/agent-applications/<id>/reject/`
+- **Withdrawals**: `GET /api/admin/withdrawals/`, `POST /api/admin/withdrawals/<id>/approve/`, `POST /api/admin/withdrawals/<id>/reject/`
+- **Calls & Transactions**: `GET /api/admin/calls/`, `GET /api/admin/transactions/`
+- **Push Broadcasts**: `POST /api/admin/notifications/broadcast/`
+- **Task Targets & Settings**: `GET /api/admin/tasks/`, `GET /api/admin/settings/`
+

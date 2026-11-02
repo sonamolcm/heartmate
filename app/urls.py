@@ -1,7 +1,12 @@
-from django.urls import path
+from django.urls import path, include
 from . import views
 
 urlpatterns = [
+    # ==========================================
+    # ADMIN PANEL REST APIS (/api/admin/...)
+    # ==========================================
+    path('api/admin/', include('app.admin_api_urls')),
+
     # ==========================================
     # USER APP DEDICATED AUTHENTICATION & SESSION
     # ==========================================
