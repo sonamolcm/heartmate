@@ -419,3 +419,55 @@ class AdminRestAPITests(TestCase):
 
         res_agents = self.client.get('/api/admin/live/online-agents/')
         self.assertEqual(res_agents.status_code, status.HTTP_200_OK)
+
+
+class UserRegistrationAndAuthTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+    def test_send_otp_4_digits(self):
+        res = self.client.post('/api/user/send-otp/', {'phone_number': '9876500001'}, format='json')
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertIn('otp', res.data)
+        self.assertEqual(len(res.data['otp']), 4)
+        self.assertTrue(res.data['otp'].isdigit())
+
+    def test_user_register_with_minimal_fields_and_gender(self):
+        # Register user with only phone_number and gender
+        res = self.client.post('/api/user/register/', {
+            'phone_number': '9876500002',
+            'gender': 'female'
+        }, format='json')
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertIn('token', res.data)
+        self.assertEqual(res.data['role'], 'user')
+        self.assertEqual(res.data['user']['profile']['gender'], 'female')
+        self.assertEqual(res.data['user']['profile']['age'], 18)
+        self.assertTrue(res.data['user']['profile']['name'].startswith('User_'))
+
+    def test_user_register_with_phone_alias_and_custom_name(self):
+        # Register user with 'phone' alias instead of 'phone_number'
+        res = self.client.post('/api/user/register/', {
+            'phone': '9876500003',
+            'name': 'Ananya',
+            'age': '22',
+            'gender': 'female'
+        }, format='json')
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res.data['user']['profile']['name'], 'Ananya')
+        self.assertEqual(res.data['user']['profile']['age'], 22)
+        self.assertEqual(res.data['user']['profile']['gender'], 'female')
+
+    def test_user_register_empty_body_clear_error(self):
+        res = self.client.post('/api/user/register/', {}, format='json')
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('phone_number', res.data)
+        self.assertIn('error', res.data)
+        # Verify the error tells the user specifically what is required
+        self.assertIn('phone_number', res.data['error'])
+
+    def test_user_register_get_helper(self):
+        res = self.client.get('/api/user/register/')
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertIn('example_json_body', res.data)
+

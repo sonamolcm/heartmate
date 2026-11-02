@@ -38,6 +38,8 @@ try:
 except ImportError:
     pass
 
+import json
+
 def _format_error_response(errors):
     """Ensure error response has both field breakdown and a clear top-level 'error' message."""
     msg = None
@@ -48,14 +50,16 @@ def _format_error_response(errors):
         else:
             for key, val in errors.items():
                 if isinstance(val, (list, tuple)) and val:
-                    msg = str(val[0])
+                    first_err = str(val[0])
+                    msg = f"{key}: {first_err}" if not first_err.lower().startswith(key.lower()) else first_err
                     break
                 elif isinstance(val, dict):
                     nested = _format_error_response(val).data
                     msg = nested.get('error')
                     break
                 elif val:
-                    msg = str(val)
+                    first_err = str(val)
+                    msg = f"{key}: {first_err}" if not first_err.lower().startswith(key.lower()) else first_err
                     break
     elif isinstance(errors, (list, tuple)) and errors:
         msg = str(errors[0])
@@ -67,6 +71,38 @@ def _format_error_response(errors):
     response_data['error'] = msg
     response_data['message'] = msg
     return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
+
+def _extract_request_data(request):
+    """
+    Robustly extract data dictionary from:
+    1. request.data (parsed json, form-data, multipart)
+    2. request.body (raw json string fallback if Content-Type missing)
+    3. request.query_params / request.GET (URL query parameters)
+    """
+    data = {}
+    if hasattr(request, 'data'):
+        if isinstance(request.data, dict):
+            data.update(request.data)
+        elif hasattr(request.data, 'dict'):
+            data.update(request.data.dict())
+
+    if not data and hasattr(request, 'body') and request.body:
+        try:
+            body_text = request.body.decode('utf-8')
+            parsed = json.loads(body_text)
+            if isinstance(parsed, dict):
+                data.update(parsed)
+        except Exception:
+            pass
+
+    # Merge query parameters
+    params = getattr(request, 'query_params', None) or getattr(request, 'GET', None)
+    if params:
+        for k, v in params.items():
+            if k not in data or data[k] is None or data[k] == '':
+                data[k] = v
+
+    return data
 
 def _build_auth_response(user, token_key, message, extra=None):
     """Standardized response payload for all authentication endpoints across User and Agent apps."""
@@ -82,17 +118,21 @@ def _build_auth_response(user, token_key, message, extra=None):
         payload.update(extra)
     return payload
 
-@api_view(['POST'])
+@api_view(['POST', 'GET'])
 @permission_classes([AllowAny])
 def send_otp(request):
     """
     Send / Generate OTP for a 10-digit phone number.
-    Send / Generate OTP for a 10-digit phone number.
     Returns 4-digit OTP code and records it with 10-minute validity.
     """
-    raw_phone = request.data.get('phone_number')
+    data = _extract_request_data(request)
+    raw_phone = data.get('phone_number') or data.get('phone') or data.get('mobile') or data.get('contact')
     if not raw_phone:
-        return Response({'error': '10-digit phone_number is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({
+            'error': '10-digit phone_number is required.',
+            'message': '10-digit phone_number is required.',
+            'example': {'phone_number': '9876543210'}
+        }, status=status.HTTP_400_BAD_REQUEST)
 
     try:
         phone_number = validate_10_digit_number(raw_phone, "Phone number")
@@ -100,7 +140,7 @@ def send_otp(request):
         msg = str(e)
         if hasattr(e, 'detail') and isinstance(e.detail, list) and e.detail:
             msg = str(e.detail[0])
-        return Response({'error': msg}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'error': msg, 'message': msg}, status=status.HTTP_400_BAD_REQUEST)
 
     import random
     otp_code = f"{random.randint(1000, 9999)}"
@@ -113,11 +153,35 @@ def send_otp(request):
         'otp': otp_code
     })
 
-@api_view(['POST'])
+@api_view(['POST', 'GET'])
 @permission_classes([AllowAny])
 def register_user(request):
     """Register a new customer for Heartmate User App using 10-digit phone number"""
-    serializer = UserRegistrationSerializer(data=request.data)
+    if request.method == 'GET':
+        return Response({
+            'status': 'Heartmate User Registration Endpoint',
+            'method_required': 'POST',
+            'required_fields': {
+                'phone_number': '10-digit phone number (e.g. 9876543210)'
+            },
+            'optional_fields': {
+                'name': 'Full name (defaults to User_<last4>)',
+                'age': 'Age (defaults to 18)',
+                'gender': 'Gender (male / female / other)',
+                'otp': '4-digit OTP received from /api/user/send-otp/',
+                'password': 'Optional account password'
+            },
+            'example_json_body': {
+                'phone_number': '9876543210',
+                'name': 'Rahul Sharma',
+                'age': 24,
+                'gender': 'male',
+                'otp': '1234'
+            }
+        }, status=status.HTTP_200_OK)
+
+    payload = _extract_request_data(request)
+    serializer = UserRegistrationSerializer(data=payload)
     if serializer.is_valid():
         user = serializer.save()
         user.is_staff = False  # Ensure regular customer role
@@ -125,7 +189,7 @@ def register_user(request):
 
         token, created = Token.objects.get_or_create(user=user)
 
-        fcm_token = request.data.get('fcm_token')
+        fcm_token = payload.get('fcm_token')
         if fcm_token:
             user.fcm_token = fcm_token
             user.save(update_fields=['fcm_token'])
@@ -224,7 +288,8 @@ def user_app_google_auth(request):
 @permission_classes([AllowAny])
 def phone_auth(request):
     """Authenticate user with 10-digit phone number and OTP"""
-    serializer = PhoneAuthSerializer(data=request.data)
+    payload = _extract_request_data(request)
+    serializer = PhoneAuthSerializer(data=payload)
     if serializer.is_valid():
         phone_number = serializer.validated_data['phone_number']
 
@@ -235,7 +300,7 @@ def phone_auth(request):
                 'message': 'User not found with this 10-digit number. Please register first.'
             }, status=status.HTTP_404_NOT_FOUND)
 
-        app_type = request.data.get('app_type')
+        app_type = payload.get('app_type')
         if app_type == 'agent':
             if not user.is_staff:
                 return Response({'error': 'Access denied. This account is not registered as an Agent. Please use the Heartmate User App.'}, status=status.HTTP_403_FORBIDDEN)
@@ -251,7 +316,7 @@ def phone_auth(request):
             if user.is_staff:
                 return Response({'error': 'This account is registered as an Agent. Please use the Heartmate Agent App.'}, status=status.HTTP_403_FORBIDDEN)
 
-        fcm_token = request.data.get('fcm_token')
+        fcm_token = payload.get('fcm_token')
         if fcm_token:
             user.fcm_token = fcm_token
 
@@ -269,7 +334,7 @@ def phone_auth(request):
 @permission_classes([AllowAny])
 def user_app_phone_auth(request):
     """Dedicated phone OTP authentication endpoint for Heartmate User App (strictly regular users)"""
-    data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+    data = _extract_request_data(request)
     data['app_type'] = 'user'
     serializer = PhoneAuthSerializer(data=data)
     if serializer.is_valid():
@@ -283,7 +348,7 @@ def user_app_phone_auth(request):
                 'error': 'This account is registered as an Agent. Please use the Heartmate Agent App to log in.'
             }, status=status.HTTP_403_FORBIDDEN)
 
-        fcm_token = request.data.get('fcm_token')
+        fcm_token = data.get('fcm_token')
         if fcm_token:
             user.fcm_token = fcm_token
 

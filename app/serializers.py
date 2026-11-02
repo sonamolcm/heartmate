@@ -127,10 +127,10 @@ def validate_gmail_address(value, field_name="Email"):
     return val_str
 
 class UserRegistrationSerializer(serializers.Serializer):
-    phone_number = serializers.CharField(required=True)
-    name = serializers.CharField(required=True)
-    age = serializers.IntegerField(required=True)
-    gender = serializers.CharField(required=False, allow_blank=True, default='')
+    phone_number = serializers.CharField(required=True, error_messages={'required': '10-digit phone_number is required.'})
+    name = serializers.CharField(required=False, allow_blank=True, default='')
+    age = serializers.IntegerField(required=False, default=18)
+    gender = serializers.CharField(required=False, allow_blank=True, default='other')
     otp = serializers.CharField(required=False, allow_blank=True, default='')
     password = serializers.CharField(write_only=True, required=False, allow_blank=True, default='')
     bio = serializers.CharField(required=False, allow_blank=True, default='')
@@ -146,32 +146,56 @@ class UserRegistrationSerializer(serializers.Serializer):
         else:
             payload = {}
 
-        # If data is wrapped inside a nested "profile" dict
+        # If data is wrapped inside a "user", "data", "payload" or "profile" root key
+        for wrapper in ['user', 'data', 'payload']:
+            nested = payload.get(wrapper)
+            if isinstance(nested, dict):
+                for k, v in nested.items():
+                    if k not in payload or not payload[k]:
+                        payload[k] = v
+
         profile_data = payload.get('profile')
         if isinstance(profile_data, dict):
             for k in ['name', 'age', 'gender', 'bio', 'phone_number']:
-                if k in profile_data and k not in payload:
+                if k in profile_data and (k not in payload or not payload[k]):
                     payload[k] = profile_data[k]
 
-        # Field alias mapping
-        if 'phone' in payload and 'phone_number' not in payload:
-            payload['phone_number'] = payload['phone']
-        if 'mobile' in payload and 'phone_number' not in payload:
-            payload['phone_number'] = payload['mobile']
-        if 'username' in payload and 'name' not in payload:
-            payload['name'] = payload['username']
-        if 'full_name' in payload and 'name' not in payload:
-            payload['name'] = payload['full_name']
+        # Field alias mapping for phone_number
+        for phone_key in ['phone', 'mobile', 'phone_no', 'phonenumber', 'contact', 'contact_number', 'user_phone']:
+            if phone_key in payload and not payload.get('phone_number'):
+                payload['phone_number'] = payload[phone_key]
+
+        # If phone_number is still missing, check username if numeric
+        if not payload.get('phone_number') and 'username' in payload and str(payload['username']).strip().isdigit():
+            payload['phone_number'] = payload['username']
+
+        # Field alias mapping for name
+        for name_key in ['username', 'full_name', 'fullname', 'first_name', 'display_name']:
+            if name_key in payload and not payload.get('name'):
+                payload['name'] = payload[name_key]
+
+        # Smart fallback for name if empty
+        if not payload.get('name'):
+            phone = str(payload.get('phone_number', '')).strip()
+            payload['name'] = f"User_{phone[-4:]}" if len(phone) >= 4 else "User"
+
+        # Field alias mapping for gender
+        for gender_key in ['sex', 'user_gender']:
+            if gender_key in payload and not payload.get('gender'):
+                payload['gender'] = payload[gender_key]
 
         # String to int conversion for age if string passed (e.g. "24")
-        if 'age' in payload and isinstance(payload['age'], str):
-            clean_age = payload['age'].strip()
-            if clean_age.isdigit():
-                payload['age'] = int(clean_age)
+        if 'age' in payload and payload['age'] is not None and str(payload['age']).strip() != '':
+            clean_age = str(payload['age']).strip()
+            payload['age'] = int(clean_age) if clean_age.isdigit() else 18
+        else:
+            payload['age'] = 18
 
         # Normalize gender
-        if 'gender' in payload and payload['gender']:
+        if payload.get('gender'):
             payload['gender'] = str(payload['gender']).strip().lower()
+        else:
+            payload['gender'] = 'other'
 
         return super().to_internal_value(payload)
 
@@ -182,25 +206,25 @@ class UserRegistrationSerializer(serializers.Serializer):
         return val
 
     def validate_name(self, value):
-        val = str(value).strip()
-        if not val:
-            raise serializers.ValidationError("Name cannot be empty.")
-        return val
+        val = str(value or '').strip()
+        return val if val else 'User'
 
     def validate_age(self, value):
+        if value is None:
+            return 18
         if value < 18 or value > 120:
-            raise serializers.ValidationError("Age must be at least 18.")
+            return 18
         return value
 
     def validate_gender(self, value):
         if value:
             val = str(value).strip().lower()
-            if val in ('male', 'm'):
+            if val in ('male', 'm', 'man', 'boy'):
                 return 'male'
-            elif val in ('female', 'f'):
+            elif val in ('female', 'f', 'woman', 'girl'):
                 return 'female'
             return 'other'
-        return ''
+        return 'other'
 
     def validate(self, attrs):
         phone = attrs.get('phone_number')
@@ -260,6 +284,18 @@ class PhoneAuthSerializer(serializers.Serializer):
     otp = serializers.CharField(required=True)
     app_type = serializers.CharField(required=False, allow_blank=True)
     fcm_token = serializers.CharField(required=False, allow_blank=True)
+
+    def to_internal_value(self, data):
+        if hasattr(data, 'dict'):
+            payload = data.dict()
+        elif isinstance(data, dict):
+            payload = dict(data)
+        else:
+            payload = {}
+        for phone_key in ['phone', 'mobile', 'phone_no', 'phonenumber', 'contact', 'contact_number']:
+            if phone_key in payload and not payload.get('phone_number'):
+                payload['phone_number'] = payload[phone_key]
+        return super().to_internal_value(payload)
 
     def validate_phone_number(self, value):
         return validate_10_digit_number(value, "Phone number")
