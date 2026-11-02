@@ -429,8 +429,7 @@ class UserRegistrationAndAuthTests(TestCase):
         res = self.client.post('/api/user/send-otp/', {'phone_number': '9876500001'}, format='json')
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertIn('otp', res.data)
-        self.assertEqual(len(res.data['otp']), 4)
-        self.assertTrue(res.data['otp'].isdigit())
+        self.assertEqual(res.data['otp'], '1234')
 
     def test_user_register_with_minimal_fields_and_gender(self):
         # Register user with only phone_number and gender

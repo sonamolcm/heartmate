@@ -159,8 +159,7 @@ def send_otp(request):
             msg = str(e.detail[0])
         return Response({'error': msg, 'message': msg}, status=status.HTTP_400_BAD_REQUEST)
 
-    import random
-    otp_code = f"{random.randint(1000, 9999)}"
+    otp_code = "1234"
     PhoneOTP.objects.create(phone_number=phone_number, otp=otp_code)
 
     return Response({

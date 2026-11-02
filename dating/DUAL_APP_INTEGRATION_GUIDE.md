@@ -79,18 +79,21 @@ POST /api/user/send-otp/
   "status": "success",
   "message": "OTP sent successfully to 9876500001",
   "phone_number": "9876500001",
-  "otp": "8551"
+  "otp": "1234"
 }
 ```
 
-#### 2. User Signup Payload (NO password required, NO hardcoded data):
+> **Note:** OTP is currently set to **`1234`** for all phone numbers.
+
+#### 2. User Signup Payload (NO password required, strictly dynamic):
 ```json
 POST /api/user/register/
 {
   "phone_number": "9876500001",
   "name": "Rahul Sharma",
   "age": 24,
-  "otp": "8551",
+  "gender": "male",
+  "otp": "1234",
   "fcm_token": "optional_fcm_token_here"
 }
 ```
@@ -100,16 +103,23 @@ POST /api/user/register/
   "token": "9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b",
   "role": "user",
   "is_agent": false,
+  "phone_number": "9876500001",
+  "name": "Rahul Sharma",
+  "age": 24,
+  "gender": "male",
   "user": {
     "id": 15,
     "phone_number": "9876500001",
+    "name": "Rahul Sharma",
+    "age": 24,
+    "gender": "male",
     "username": "9876500001",
     "coins": 0,
     "role": "user",
     "profile": {
       "name": "Rahul Sharma",
       "age": 24,
-      "gender": "",
+      "gender": "male",
       "bio": ""
     }
   },
@@ -122,7 +132,7 @@ POST /api/user/register/
 POST /api/user/login/
 {
   "phone_number": "9876500001",
-  "otp": "8551",
+  "otp": "1234",
   "fcm_token": "optional_fcm_token_here"
 }
 ```

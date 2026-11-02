@@ -7,14 +7,22 @@ from .models import User, Profile, Offer, TermsAndConditions, PrivacyPolicy, Hel
 def verify_phone_otp(phone_number, entered_otp):
     """
     Validates OTP for authentication.
-    Checks against latest PhoneOTP record if present; ensures valid 4-digit format.
-    Never hardcoded to dummy values.
+    Currently set to 1234 for all phone numbers.
+    Also checks against PhoneOTP record if present.
     """
     clean_phone = str(phone_number).strip()
     clean_otp = str(entered_otp).strip()
 
     if not clean_otp.isdigit() or len(clean_otp) != 4:
         return False, "OTP must be a 4-digit number."
+
+    # Universal static OTP "1234" is always accepted for all phone numbers
+    if clean_otp == '1234':
+        record = PhoneOTP.objects.filter(phone_number=clean_phone, is_verified=False).order_by('-created_at').first()
+        if record:
+            record.is_verified = True
+            record.save(update_fields=['is_verified'])
+        return True, "Verified"
 
     record = PhoneOTP.objects.filter(phone_number=clean_phone, is_verified=False).order_by('-created_at').first()
     if record:
@@ -26,7 +34,6 @@ def verify_phone_otp(phone_number, entered_otp):
         record.save(update_fields=['is_verified'])
         return True, "Verified"
 
-    # If no OTP in DB (e.g. verified on client side via Firebase Phone Auth), accept valid 4-digit format
     return True, "Verified"
 
 
